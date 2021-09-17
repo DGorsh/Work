@@ -1,0 +1,10 @@
+E:\Work\GLTest\GLTest\bin\Debug\GLTest.exe.config
+E:\Work\GLTest\GLTest\bin\Debug\GLTest.exe
+E:\Work\GLTest\GLTest\bin\Debug\GLTest.pdb
+E:\Work\GLTest\GLTest\bin\Debug\Tao.FreeGlut.dll
+E:\Work\GLTest\GLTest\bin\Debug\Tao.OpenGl.dll
+E:\Work\GLTest\GLTest\bin\Debug\Tao.FreeGlut.xml
+E:\Work\GLTest\GLTest\bin\Debug\Tao.OpenGl.xml
+E:\Work\GLTest\GLTest\obj\Debug\GLTest.csprojResolveAssemblyReference.cache
+E:\Work\GLTest\GLTest\obj\Debug\GLTest.exe
+E:\Work\GLTest\GLTest\obj\Debug\GLTest.pdb
