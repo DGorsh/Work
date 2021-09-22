@@ -1,6 +1,9 @@
 ﻿using System;
 using Tao.FreeGlut;
 using Tao.OpenGl;
+using System.Text;
+using System.IO;
+using System.Collections.Generic;
 
 namespace GLTest
 {
@@ -8,6 +11,12 @@ namespace GLTest
     {
         const int WIDTH = 800, HEIGTH = 400; // ширина и высота окна
         static bool isShader = false; // обводка
+
+        static uint VertexBufferObj; //верш. буфер
+        static uint IndexBufferObj; //буфер индексов
+        static int DataSize;
+        static uint ShaderProgramObj; //шейдер (обычный кубик)
+        static uint ShaderProgramOut; //шейдер (для кубика-обводки)
 
         static void on_display()
         {
@@ -31,26 +40,31 @@ namespace GLTest
 
         static void viewport_scene()
         {
-            if (!isShader)
+            Gl.glBindBuffer(Gl.GL_ELEMENT_ARRAY_BUFFER, IndexBufferObj);
+            if (isShader)
             {
-                // Если без обводки
-                Gl.glEnable(Gl.GL_DEPTH_TEST);
-                Gl.glColor3f(0.5f, 0.5f, 0.0f);
-                Glut.glutSolidCube(0.5);
-                Gl.glDisable(Gl.GL_DEPTH_TEST);
+                //обводка
+                Gl.glPushMatrix();
+                Gl.glScaled(1.1, 1.1, 1.1);
+                Gl.glUseProgram(ShaderProgramOut);
+                Gl.glVertexPointer(3, Gl.GL_FLOAT, 0, (IntPtr)null);
+                Gl.glEnableClientState(Gl.GL_VERTEX_ARRAY);
+                Gl.glDrawElements(Gl.GL_TRIANGLES, DataSize / sizeof(uint), Gl.GL_UNSIGNED_INT, (IntPtr)0);
+                Gl.glPopMatrix();
             }
-            else
-            {
-                // Если с обводкой
-                Gl.glDisable(Gl.GL_DEPTH_TEST);
-                Gl.glColor3f(0.5f, 0.0f, 0.5f);
-                Glut.glutSolidCube(0.6);
 
-                Gl.glEnable(Gl.GL_DEPTH_TEST);
-                Gl.glColor3f(0.5f, 0.5f, 0.0f);
-                Glut.glutSolidCube(0.5);
-                Gl.glDisable(Gl.GL_DEPTH_TEST);
-            }
+            // Кубик
+            Gl.glUseProgram(ShaderProgramObj);
+            Gl.glEnable(Gl.GL_DEPTH_TEST);
+
+            Gl.glPushMatrix();
+            Gl.glScaled(1.0, 1.0, 1.0);
+            Gl.glVertexPointer(3, Gl.GL_FLOAT, 0, (IntPtr)null);
+            Gl.glEnableClientState(Gl.GL_VERTEX_ARRAY);
+            Gl.glDrawElements(Gl.GL_TRIANGLES, DataSize / sizeof(uint), Gl.GL_UNSIGNED_INT, (IntPtr)0);
+            Gl.glPopMatrix();
+
+            Gl.glDisable(Gl.GL_DEPTH_TEST);
 
         }
 
@@ -65,12 +79,70 @@ namespace GLTest
 
         static void Main()
         {
+
             //инициализация окна с помощью glut
             Glut.glutInit();
             Glut.glutInitDisplayMode(Glut.GLUT_DEPTH | Glut.GLUT_DOUBLE | Glut.GLUT_RGBA);
             Glut.glutInitWindowPosition(100, 100);
             Glut.glutInitWindowSize(WIDTH, HEIGTH);
             Glut.glutCreateWindow("Тестовое задание. Горшков Д.С.");
+
+            //объект класса 3д-объекта (куба)
+            ObjectClass CubeObj = new ObjectClass();
+            DataSize = CubeObj.mVertexSize();
+
+            //== шейдеры == обычный кубик
+            //специально не внесено в отдельную функцию загрузки шейдера - для большей наглядности
+            //для окраски был использован простейший фраг. шейдер, вершинный шейдер не использован, его иниц. аналогична фрагм. 
+
+            //фрагментный шейдер
+            string ShaderText = mReadFile("FragNormal.glsl");
+            uint FragmentShaderObj = (uint)Gl.glCreateShader(Gl.GL_FRAGMENT_SHADER);
+            Gl.glShaderSource(FragmentShaderObj, 1, new[] { ShaderText }, new[] { ShaderText.Length });
+            Gl.glCompileShader(FragmentShaderObj);
+
+            //общий шейдер
+            ShaderProgramObj = (uint)Gl.glCreateProgram();
+            Gl.glAttachShader(ShaderProgramObj, FragmentShaderObj);
+            Gl.glLinkProgram(ShaderProgramObj);
+
+            //очистка
+            Gl.glDeleteShader(FragmentShaderObj);
+
+
+            //== шейдеры == обводка кубика
+            //фрагментный шейдер
+            ShaderText = mReadFile("FragOutline.glsl");
+            FragmentShaderObj = (uint)Gl.glCreateShader(Gl.GL_FRAGMENT_SHADER);
+            Gl.glShaderSource(FragmentShaderObj, 1, new[] { ShaderText }, new[] { ShaderText.Length });
+            Gl.glCompileShader(FragmentShaderObj);
+
+            //общий шейдер
+            ShaderProgramOut = (uint)Gl.glCreateProgram();
+            Gl.glAttachShader(ShaderProgramOut, FragmentShaderObj);
+            Gl.glLinkProgram(ShaderProgramOut);
+
+            //очистка
+            Gl.glDeleteShader(FragmentShaderObj);
+
+            // == VBO ==
+            //инициализация вершинного буфера (VBO)
+            Gl.glGenBuffers(1, out VertexBufferObj);
+            Gl.glBindBuffer(Gl.GL_ARRAY_BUFFER, VertexBufferObj);
+            Gl.glBufferData(Gl.GL_ARRAY_BUFFER, (IntPtr)CubeObj.mVertexSize(), CubeObj.mVertexPos, Gl.GL_STATIC_DRAW);
+
+            //аттрибуты
+            //Gl.glVertexAttribPointer(0, 3, Gl.GL_FLOAT, Gl.GL_FALSE, 3 * sizeof(float), (IntPtr)0);
+            //Gl.glEnableVertexAttribArray(0);
+
+
+            // == Индексы ==
+            //инициализация
+            Gl.glGenBuffers(1, out IndexBufferObj);
+            Gl.glBindBuffer(Gl.GL_ELEMENT_ARRAY_BUFFER, IndexBufferObj);
+            Gl.glBufferData(Gl.GL_ELEMENT_ARRAY_BUFFER, (IntPtr)CubeObj.mPolySize(), CubeObj.mPolyInd, Gl.GL_STATIC_DRAW);
+            DataSize = CubeObj.mPolySize();
+
 
             //функции для работы окна.
             Glut.glutDisplayFunc(on_display);
@@ -80,6 +152,26 @@ namespace GLTest
         }
 
 
+        //чтение из файла
+        static string mReadFile (string ppFilename)
+        {
+            StringBuilder OutData = new StringBuilder();
+            try
+            {
+                using (StreamReader File = new StreamReader(ppFilename))
+                {
+                    string tReaded;
+                    while ((tReaded = File.ReadLine()) != null)
+                    {
+                        OutData.Append(tReaded).Append("\n ");
+                    }
+                }
+            } catch (Exception e)
+            {
+                return "";
+            }
+            return OutData.ToString();
+        }
 
         //==================================================================
         // Задание 2
